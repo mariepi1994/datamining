@@ -13,12 +13,12 @@ class Flights():
             5 : "select * from weather WHERE ID = ?"
         }
 
+    """commits weather for flight into DB -- shouldn't call """
     def findFlightWeather(self):
         cur = self.connection.cursor()
         cur.execute(self.commands[0])
         for row in cur:
             flight_id, date, origin, dept_time, destination, arr_time  = row
-            print(origin, dept_time, destination, arr_time)
 
             cur2 = self.connection.cursor()
             cur2.execute(self.commands[1], (origin, date,) )
@@ -27,10 +27,10 @@ class Flights():
             cur2.execute(self.commands[1], (destination, date,) )
             destination_id = self.findClosestTime(dept_time,cur2.fetchall() )
 
-
             cur3 = self.connection.cursor()
             cur3.execute(self.commands[2], (origin_id, flight_id,))
             cur3.execute(self.commands[3], (destination_id, flight_id,))
+
         self.connection.commit()
 
     def timeDifference(self,t1,t2):
@@ -51,8 +51,7 @@ class Flights():
 
         return index
 
-    """error check for null vals"""
-    def getTuples(self):
+    def getDictionaryRows(self):
         self.connection.row_factory = self.dict_factory
         cur = self.connection.cursor()
         cur.execute(self.commands[4])
@@ -62,25 +61,30 @@ class Flights():
             if(row["DeptWeatherID"] != None and row["ArrWeatherID"] != None):
                 cur1 = self.connection.cursor()
                 cur1.execute(self.commands[5], (row["DeptWeatherID"],))
-                #ret.append(cur1.fetchone())
                 ret["origin_weather"] = cur1.fetchone()
                 cur1.execute(self.commands[5], (row["ArrWeatherID"],))
-                #ret.append(cur1.fetchone())
                 ret["destination_weather"] = cur1.fetchone()
                 yield ret
 
-    """should return x_train, y_train, x_test, y_test"""
-
-
     """transforms row and col into 2d martix just focusing on dep delay"""
     def transformData(self):
-        features = ["HOURLYVISIBILITY", "HOURLYDRYBULBTEMPC",
-                    "HOURLYWETBULBTEMPC"]
+        flight_features = ["Month", "DayofMonth", "DayOfWeek",
+         "OriginAirportID", "DestAirportID","DOT_ID_Reporting_Airline"]
+        weather_features = ["HOURLYWindSpeed", "HOURLYWindDirection",
+        "HOURLYDRYBULBTEMPC","HOURLYWETBULBTEMPC", "HOURLYStationPressure",
+        "HOURLYRelativeHumidity"]
+
         X = []
         Y = []
-        for row in self.getTuples():
-            Y.append(int(row["flight"]["DepDel15"]))
-            X.append([int(row["origin_weather"][f]) for f in features])
+        for row in self.getDictionaryRows():
+            Y.append(int(row["flight"]["DepDel15"] == "1.00"))
+            f = []
+            X.append([int(row["flight"][f]) for f in flight_features] +
+            [row["origin_weather"][f] for f in weather_features] +
+            [int(y) for y in row["flight"]["CRSDepTime"].split(":")] +
+            [int(y) for y in row["flight"]["CRSArrTime"].split(":")])
+            print(X,Y)
+
         return X, Y
 
 
@@ -90,21 +94,10 @@ class Flights():
             d[col[0]] = row[idx]
         return d
 
-    def fillMissingCols():
-        """fill the missing cols of the weather data"""
-        pass
-
-
-
-
 
 def main():
     f = Flights("weatherflights.db")
-    f.findFlightWeather()
-    # for tup in f.getTuples():
-    #     print(tup)
-    #     print("\n")
-    #f.transformData()
+    f.transformData()
 
 if __name__ == '__main__':
     main()
