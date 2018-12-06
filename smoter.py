@@ -28,28 +28,28 @@ def printYTocsv(y):
 	with open('balanced_clean_y_all.csv', 'w') as csvfile:
 		csvWriter = csv.writer(csvfile)
 		for row in y.tolist():
-			csvWriter.writerow([row])	
+			csvWriter.writerow([row])
 
 def smoteData(x,y):
 	value, count = np.unique(y, return_counts=True)
 	counts = dict(zip(value, count))
-	print("Before SMOTE")
-	print(counts)
-	
+	# print("Before SMOTE")
+	# print(counts)
+
 	my_smoter = SMOTE()
 	x,y = my_smoter.fit_sample(x,y)
 
 	value, count = np.unique(y, return_counts=True)
 	counts = dict(zip(value, count))
-	print("After SMOTE")
-	print(counts)
+	# print("After SMOTE")
+	# print(counts)
 	return x,y
 
 def main():
 	x = np.array(loadXcsv()).astype(np.float64)
 	y = np.array(loadYcsv()).astype(np.float64)
 	y = np.ravel(y)
-	
+
 	x,y = smoteData(x,y)
 	printXTocsv(x)
 	printYTocsv(y)

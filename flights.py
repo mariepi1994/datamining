@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import timedelta
-
+import csv
 class Flights():
     def __init__(self,database):
         self.connection = sqlite3.connect(database)
@@ -66,44 +66,35 @@ class Flights():
         last_row = {"flight":{}, "origin_weather": {}, "destination_weather": {}}
         for row in cur:
             ret = {}
-            ret["flight"] = row
             if(row["DeptWeatherID"] != None and row["ArrWeatherID"] != None):
+                ret["flight"] = row
                 cur1 = self.connection.cursor()
                 cur1.execute(self.commands[5], (row["DeptWeatherID"],))
-                ret["origin_weather"] = cur1.fetchone()
-                #self.formatRow(ret["origin_weather"], last_row["origin_weather"])
-
+                ret["origin_weather"] = self.formatRow(cur1.fetchone(), last_row["origin_weather"])
                 cur1.execute(self.commands[5], (row["ArrWeatherID"],))
-                ret["destination_weather"] = cur1.fetchone()
-                #self.formatRow(cur1.fetchone(), last_row["destination_weather"])
-                #last_row = ret
+                ret["destination_weather"] = self.formatRow(cur1.fetchone(), last_row["destination_weather"])
+                last_row = ret
                 yield ret
 
+
     def formatRow(self, row, last_row):
-        print row, last_row
         if(last_row):
             for feature in row:
-                if(row[feature] == ''):
-                    row[feature] = int(last_row[feature])
+                if(row[feature] == '' or row[feature] == "VRB" or
+                (feature == "HOURLYStationPressure" and "s" in row[feature])):
+                    row[feature] = last_row[feature]
         return row
 
 
     """transforms row and col into 2d martix just focusing on dep delay"""
     def transformData(self):
-        X = []
-        Y = []
         for row in self.getDictionaryRows():
-            Y.append(int(row["flight"]["DepDel15"] == "1.00"))
-            f = []
-            X.append([int(row["flight"][f]) for f in self.flight_features] +
+            Y = int(row["flight"]["DepDel15"] == "1.00")
+            X = ([int(row["flight"][f]) for f in self.flight_features] +
             [row["origin_weather"][f] for f in self.weather_features] +
             [int(y) for y in row["flight"]["CRSDepTime"].split(":")] +
             [int(y) for y in row["flight"]["CRSArrTime"].split(":")])
-            print(X,Y)
-
-
-        return X, Y
-
+            yield X,Y
 
     def dict_factory(self,cursor, row):
         d = {}
@@ -111,12 +102,22 @@ class Flights():
             d[col[0]] = row[idx]
         return d
 
-
 def main():
-    f = Flights("flights_weather.db")
-    # for feat in f.getDictionaryRows():
-    #     print feat
-    f.transformData()
+    fl = Flights("flights_weather.db")
+    with open ('unbalanced_all_x.csv', 'w') as f, open ('unbalanced_all_y.csv', 'w') as g:
+        writer1 = csv.writer(f)
+        writer2 = csv.writer(g)
+        for row in fl.transformData():
+            writer1.writerow(row[0])
+            if '' in row[0]:
+                print("found nothing")
+                print(row[0])
+            writer2.writerow([row[1]])
+            #print row[0], row[1]
+
+
+
+
 
 if __name__ == '__main__':
     main()
