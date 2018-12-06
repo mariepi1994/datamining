@@ -44,7 +44,7 @@ def splitData(fx, fy, train_percentage):
 
     train_x, test_x = X[train_i,:], X[test_i,:]
     train_y, test_y = Y[train_i,:], Y[test_i,:]
-    return train_x[0:max_num], test_x[0:max_num], train_y[0:max_num], test_y[0:max_num]
+    return train_x, test_x, train_y, test_y
 
 
 def main():
